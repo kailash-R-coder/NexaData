@@ -5,7 +5,7 @@ import Google from "next-auth/providers/google"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/db"
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, auth: authConfig, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
     Credentials({
