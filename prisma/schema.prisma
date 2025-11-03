@@ -55,7 +55,6 @@ model User {
 
   // Relations
   dataSources   DataSource[]
-  datasets      Dataset[]
   dashboards    Dashboard[]
   analyticsJobs AnalyticsJob[]
   sessions      Session[]
