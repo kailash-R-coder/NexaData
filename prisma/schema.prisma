@@ -1,0 +1,177 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums for user roles and other status fields
+enum UserRole {
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+enum SourceType {
+  FILE_UPLOAD
+  DATABASE_CONNECTION
+  CLOUD_STORAGE
+  API_ENDPOINT
+}
+
+enum JobType {
+  PREDICTION
+  ANOMALY_DETECTION
+  CORRELATION_ANALYSIS
+  TREND_ANALYSIS
+  CLUSTERING
+  REPORT_GENERATION
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// Main application tables
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  role         UserRole @default(VIEWER)
+  isActive     Boolean  @default(true)
+  lastLogin    DateTime?
+  preferences  Json?
+  name         String?
+  image        String?
+  emailVerified DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  dataSources   DataSource[]
+  dashboards    Dashboard[]
+  analyticsJobs AnalyticsJob[]
+  accounts      Account[]
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model DataSource {
+  id                String      @id @default(cuid())
+  userId            String
+  name              String
+  type              SourceType
+  connectionConfig  Json
+  isActive          Boolean     @default(true)
+  lastSync          DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  datasets Dataset[]
+
+  @@map("data_sources")
+}
+
+model Dataset {
+  id           String  @id @default(cuid())
+  dataSourceId String
+  name         String
+  schema       Json
+  rowCount     Int?
+  fileSize     BigInt?
+  qualityScore Decimal? @db.Decimal(3, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  dataSource     DataSource      @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  analyticsJobs AnalyticsJob[]
+
+  @@map("datasets")
+}
+
+model Dashboard {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  layout      Json
+  config      Json
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastViewed  DateTime?
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("dashboards")
+}
+
+model AnalyticsJob {
+  id        String   @id @default(cuid())
+  datasetId String
+  userId    String
+  type      JobType
+  status    JobStatus @default(PENDING)
+  config    Json
+  results   Json?
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+
+  // Relations
+  dataset Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("analytics_jobs")
+}
